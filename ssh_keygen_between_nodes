@@ -1,0 +1,44 @@
+oracle@rac1 ~]$ ssh-keygen
+Generating public/private rsa key pair.
+Enter file in which to save the key (/home/oracle/.ssh/id_rsa):
+/home/oracle/.ssh/id_rsa already exists.
+Overwrite (y/n)? y
+Enter passphrase (empty for no passphrase):
+Enter same passphrase again:
+Your identification has been saved in /home/oracle/.ssh/id_rsa.
+Your public key has been saved in /home/oracle/.ssh/id_rsa.pub.
+The key fingerprint is:
+SHA256:xV7KeK0+zuIkM6w4Z+cAtnhGxMDqt+cFcB3q9tnXfLI oracle@rac1.frkcvk.com
+The key's randomart image is:
++---[RSA 2048]----+
+|o      .         |
+| +    o ..       |
+|. o. o .  o .    |
+|..  +    = +     |
+|. +  +  S = .    |
+| = +..o o. .o    |
+|. = o =+.... + . |
+| o.oo+o=.oo   +  |
+|  .+++...o+. E   |
++----[SHA256]-----+
+[oracle@rac1 ~]$
+[oracle@rac1 ~]$
+
+
+[oracle@rac1 ~]$ ssh-copy-id oracle@rac3
+/bin/ssh-copy-id: INFO: Source of key(s) to be installed: "/home/oracle/.ssh/id_rsa.pub"
+/bin/ssh-copy-id: INFO: attempting to log in with the new key(s), to filter out any that are already installed
+/bin/ssh-copy-id: INFO: 1 key(s) remain to be installed -- if you are prompted now it is to install the new keys
+oracle@rac3's password:
+
+Number of key(s) added: 1
+
+Now try logging into the machine, with:   "ssh 'oracle@rac3'"
+and check to make sure that only the key(s) you wanted were added.
+
+[oracle@rac1 ~]$ ssh rac3
+Last login: Tue Oct 20 22:13:26 2020 from rac1.frkcvk.com
+[oracle@rac3 ~]$ exit
+logout
+Connection to rac3 closed.
+[oracle@rac1 ~]$
