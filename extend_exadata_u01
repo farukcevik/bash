@@ -1,0 +1,33 @@
+# Boş alanımız olduğu sürece root (/) birimine uygulanabilir. u01 Volume extending herhangi bir kesinti gerektirmez. 
+#Patch veya herhangi başka bir işlemi sırasında depolama alanı sıkıntısını önlemek için /u01 alanının 500G ye çıkarılması önerilmektedir.
+
+[root@node2 ~]# df -h /u01 .
+Filesystem            Size  Used Avail Use% Mounted on
+/dev/mapper/VGExaDb-LVDbOra1
+                       99G   19G   75G  21% /u01
+                       
+#Kullanılabilir alanı kontrol edelim
+
+[root@node2~]# vgdisplay VGExaDb -s
+  "VGExaDb" 1.63 TiB  [185.00 GiB used / 1.45 TiB free]
+
+# Volume extend edelim
+
+[root@node2 ~]# lvextend -L +200G /dev/VGExaDb/LVDbOra1
+  Size of logical volume VGExaDb/LVDbOra1 changed from 100.00 GiB (25600 extents) to 300.00 GiB (76800 extents).
+  Logical volume LVDbOra1 successfully resized.
+  
+# Resize işlemini gerçekleştirelim
+
+[root@node2~]# resize2fs /dev/VGExaDb/LVDbOra1
+resize2fs 1.43-WIP (20-Jun-2013)
+Filesystem at /dev/VGExaDb/LVDbOra1 is mounted on /u01; on-line resizing required
+old_desc_blocks = 7, new_desc_blocks = 19
+The filesystem on /dev/VGExaDb/LVDbOra1 is now 78643200 blocks long.
+
+# Check
+
+[root@node2~]# df -h /u01
+Filesystem            Size  Used Avail Use% Mounted on
+/dev/mapper/VGExaDb-LVDbOra1
+                      296G   20G  264G   7% /u01
