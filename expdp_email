@@ -1,0 +1,18 @@
+#!/bin/bash
+echo Set Oracle Database Env
+. /home/oracle/.setEnv
+. /home/oracle/.db
+export TIMESTAMP=`date +%a%d%b%Y`
+export EXP_DIR=/disk/expImpDir
+
+echo =======
+echo Export command
+echo =======
+echo $ORACLE_HOME
+$ORACLE_HOME/bin/expdp \'/ as sysdba\' directory=TESTDIR dumpfile=expdp_tab_${TIMESTAMP}_%U.dmp logfile=expdp_log_${TIMESTAMP}.log tables=LOG724DB.TBL_DIGITAL_LOG PARALLEL=6 COMPRESSION=ALL
+
+echo SEND MAIL TO STAKE HOLDERS
+echo =======
+mail -s "$ORACLE_SID $TIMESTAMP Export backup logfile" y.farukcevik@gmail.com < $EXP_DIR/expdp_log_${TIMESTAMP}.log
+echo Export completed at $TIMESTAMP
+exit
