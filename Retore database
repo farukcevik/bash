@@ -1,0 +1,196 @@
+----------------------------------------------------
+
+## RESTORE CONTROLFILE & SPFILE
+
+RMAN > connect target /
+RMAN > set dbid 75274760
+RMAN > startup nomount
+RMAN > set controlfile autobackup format for device type disk to '/data/RESTORE/PROD/BCK_20140827/%F';
+RMAN > restore spfile
+        to pfile '/oracle/10g/dbs/initPROD.ora'
+        from autobackup;
+## Edit PFILE (host directories )
+vi initPROD.ora
+%s/u01/oracle/g
+		
+RMAN> shutdown immediate; 		
+RMAN> startup nomount pfile='/oracle/10g/dbs/initPROD.ora';
+RMAN > set controlfile autobackup format for device type disk to '/data/RESTORE/PROD/BCK_20140827/%F';		
+RMAN> restore controlfile from autobackup;
+RMAN> alter database mount;
+RMAN> show all;
+
+RMAN > catalog start with '/data/RESTORE/PROD/BCK_20140827';
+
+##--NEW NAMES FOR DATAFILE AND REDOLOGS
+##--select 'set NEWNAME for datafile ' || file# || ' to '  || '''' || '/data/oradata/PROD/' || REGEXP_SUBSTR(name,'[^/]+',3,4)  || '''' || ';' from v$datafile;
+##--select 'SQL "ALTER DATABASE RENAME FILE ' || '''' || '''' || member || '''' || '''' || ' TO ' || '''' || '''' || '/oradata1/oradata/PROD/' || REGEXP_SUBSTR(member,'[[:alnum:]]+[^[:digit:]]+$') || '''' || '''' || ' ";'  from v$logfile order by member asc;
+##!/bin/bash
+
+## RECOVER DATABASE TO LAST BACKUP ARCHIVELOG
+## RMAN> list backup of archivelog all;
+#   List of Archived Logs in backup set 26950
+#  Thrd Seq     Low SCN    Low Time  Next SCN   Next Time
+#  ---- ------- ---------- --------- ---------- ---------
+#  
+
+  List of Archived Logs in backup set 26981
+  Thrd Seq     Low SCN    Low Time  Next SCN   Next Time
+  ---- ------- ---------- --------- ---------- ---------
+  1    43158   11085301507511 27-AUG-14 11085301553660 27-AUG-14
+  1    43159   11085301553660 27-AUG-14 11085301596363 27-AUG-14
+  1    43153   11085301093186 27-AUG-14 11085301185081 27-AUG-14  
+##  
+
+export ORACLE_HOME=/oracle/10g
+export ORACLE_SID=PROD
+
+/oracle/10g/bin/rman target= / << EOF
+run {
+allocate channel c1 type disk;
+allocate channel c2 type disk;
+
+set NEWNAME for datafile 1 to '/data/oradata/PROD/system01.dbf';
+set NEWNAME for datafile 2 to '/data/oradata/PROD/undotbs01.dbf';
+set NEWNAME for datafile 3 to '/data/oradata/PROD/sysaux01.dbf';
+set NEWNAME for datafile 4 to '/data/oradata/PROD/users01.dbf';
+set NEWNAME for datafile 5 to '/data/oradata/PROD/IFSAPP_DATA01.DBF';
+set NEWNAME for datafile 6 to '/data/oradata/PROD/IFSAPP_DATA02.DBF';
+set NEWNAME for datafile 7 to '/data/oradata/PROD/IFSAPP_INDEX01.DBF';
+set NEWNAME for datafile 8 to '/data/oradata/PROD/IFSAPP_INDEX02.DBF';
+set NEWNAME for datafile 9 to '/data/oradata/PROD/IFSAPP_LOB01.DBF';
+set NEWNAME for datafile 10 to '/data/oradata/PROD/IFSAPP_REPORT_DATA01.DBF';
+set NEWNAME for datafile 11 to '/data/oradata/PROD/IFSAPP_ARCHIVE_DATA01.DBF';
+set NEWNAME for datafile 12 to '/data/oradata/PROD/IFSAPP_REPORT_INDEX01.DBF';
+set NEWNAME for datafile 13 to '/data/oradata/PROD/IFSAPP_ARCHIVE_INDEX01.DBF';
+set NEWNAME for datafile 14 to '/data/oradata/PROD/IFSAPP_BOX01.DBF';
+set NEWNAME for datafile 15 to '/data/oradata/PROD/IFSAPP_BOXINDEX01.DBF';
+set NEWNAME for datafile 16 to '/data/oradata/PROD/IFSAPP_DATA04.DBF';
+set NEWNAME for datafile 17 to '/data/oradata/PROD/KOSDATA.DBF';
+set NEWNAME for datafile 18 to '/data/oradata/PROD/IFSAPP_DATA03.DBF';
+set NEWNAME for datafile 19 to '/data/oradata/PROD/AUDITTBS01.DBF';
+set NEWNAME for datafile 20 to '/data/oradata/PROD/IFSAPP_INDEX03.DBF';
+set NEWNAME for datafile 21 to '/data/oradata/PROD/AUDITTBS02.DBF';
+set NEWNAME for datafile 22 to '/data/oradata/PROD/users02.dbf';
+set NEWNAME for datafile 23 to '/data/oradata/PROD/IFSAPP_DATA05.DBF';
+set NEWNAME for datafile 24 to '/data/oradata/PROD/users03.dbf';
+set NEWNAME for datafile 25 to '/data/oradata/PROD/IFSAPP_INDEX04.DBF';
+set NEWNAME for datafile 26 to '/data/oradata/PROD/IFSAPP_LOB002.DBF';
+set NEWNAME for datafile 27 to '/data/oradata/PROD/IFSAPP_INDEX05.DBF';
+set NEWNAME for datafile 28 to '/data/oradata/PROD/IFSAPP_DATA06.DBF';
+set NEWNAME for datafile 29 to '/data/oradata/PROD/IFSAPP_REPORT_DATA02.DBF';
+set NEWNAME for datafile 30 to '/data/oradata/PROD/IFSAPP_DATA07.DBF';
+set NEWNAME for datafile 31 to '/data/oradata/PROD/IFSAPP_INDEX06.DBF';
+
+SQL "ALTER DATABASE RENAME FILE ''/data2/PROD/redolog/redo11.log'' TO ''/data/oradata/PROD/redo11.log'' ";
+SQL "ALTER DATABASE RENAME FILE ''/data2/PROD/redolog/redo12.log'' TO ''/data/oradata/PROD/redo12.log'' ";
+SQL "ALTER DATABASE RENAME FILE ''/data2/PROD/redolog/redo21.log'' TO ''/data/oradata/PROD/redo21.log'' ";
+SQL "ALTER DATABASE RENAME FILE ''/data2/PROD/redolog/redo22.log'' TO ''/data/oradata/PROD/redo22.log'' ";
+SQL "ALTER DATABASE RENAME FILE ''/data2/PROD/redolog/redo31.log'' TO ''/data/oradata/PROD/redo31.log'' ";
+SQL "ALTER DATABASE RENAME FILE ''/data2/PROD/redolog/redo32.log'' TO ''/data/oradata/PROD/redo32.log'' ";
+SQL "ALTER DATABASE RENAME FILE ''/data2/PROD/redolog/redo41.log'' TO ''/data/oradata/PROD/redo41.log'' ";
+SQL "ALTER DATABASE RENAME FILE ''/data2/PROD/redolog/redo42.log'' TO ''/data/oradata/PROD/redo42.log'' ";
+SQL "ALTER DATABASE RENAME FILE ''/data2/PROD/redolog/redo51.log'' TO ''/data/oradata/PROD/redo51.log'' ";
+SQL "ALTER DATABASE RENAME FILE ''/data2/PROD/redolog/redo52.log'' TO ''/data/oradata/PROD/redo52.log'' ";
+
+SET UNTIL SCN 11085301596363; 
+restore database;
+switch datafile all;
+recover database;
+
+release channel c1;
+release channel c2;
+
+## --Commented For Archive Log apply
+## --alter database open resetlogs;
+
+}
+EXIT;
+EOF
+
+### COPY MISSING ARCHIVE LOGFILES 
+
+select REGEXP_SUBSTR(name,'[^/]+',2,3) 
+    from v$archived_log
+    where archived = 'YES' and NEXT_CHANGE# >11085301596363
+# vi filelist.txt 	
+arc_1_790985659_43161.dbf
+arc_1_790985659_43162.dbf
+arc_1_790985659_43163.dbf
+arc_1_790985659_43164.dbf
+arc_1_790985659_43160.dbf
+arc_1_790985659_43165.dbf
+arc_1_790985659_43166.dbf
+arc_1_790985659_43167.dbf
+arc_1_790985659_43168.dbf
+arc_1_790985659_43169.dbf
+arc_1_790985659_43170.dbf
+arc_1_790985659_43171.dbf
+arc_1_790985659_43172.dbf
+arc_1_790985659_43173.dbf
+arc_1_790985659_43174.dbf
+arc_1_790985659_43175.dbf
+arc_1_790985659_43176.dbf
+arc_1_790985659_43177.dbf	
+
+## Write it & Quit
+
+#tar cvf arch_files.tar --files-from filelist.txt 
+
+#scp arch_files.tar root@172.16.0.131:/data/RESTORE/PROD/ARCH
+
+#tar xvf arch_files.tar 
+
+
+## ARCHIVED LOGS RECOVERY
+select name,sequence#
+    from v$archived_log
+    where archived = 'YES' and NEXT_CHANGE# > 11085301596363;
+
+SQL > recover database using backup controlfile until cancel;
+
+	
+/data/RESTORE/PROD/ARCH/arc_1_790985659_43160.dbf	43160
+/data/RESTORE/PROD/ARCH/arc_1_790985659_43161.dbf	43161
+/data/RESTORE/PROD/ARCH/arc_1_790985659_43162.dbf	43162
+/data/RESTORE/PROD/ARCH/arc_1_790985659_43163.dbf	43163
+/data/RESTORE/PROD/ARCH/arc_1_790985659_43164.dbf	43164
+/data/RESTORE/PROD/ARCH/arc_1_790985659_43165.dbf	43165
+/data/RESTORE/PROD/ARCH/arc_1_790985659_43166.dbf	43166
+/data/RESTORE/PROD/ARCH/arc_1_790985659_43167.dbf	43167
+/data/RESTORE/PROD/ARCH/arc_1_790985659_43168.dbf	43168
+/data/RESTORE/PROD/ARCH/arc_1_790985659_43169.dbf	43169
+/data/RESTORE/PROD/ARCH/arc_1_790985659_43170.dbf	43170
+/data/RESTORE/PROD/ARCH/arc_1_790985659_43171.dbf	43171
+/data/RESTORE/PROD/ARCH/arc_1_790985659_43172.dbf	43172
+/data/RESTORE/PROD/ARCH/arc_1_790985659_43173.dbf	43173
+/data/RESTORE/PROD/ARCH/arc_1_790985659_43174.dbf	43174
+/data/RESTORE/PROD/ARCH/arc_1_790985659_43175.dbf	43175
+/data/RESTORE/PROD/ARCH/arc_1_790985659_43176.dbf	43176
+/data/RESTORE/PROD/ARCH/arc_1_790985659_43177.dbf	43177   27.08.2014 12:25:18
+
+
+ 
+ 
+
+SQL > alter database open resetlogs;
+
+##### RESTORE COMPLETED
+
+## -- TEMP FILE ADD
+##-- select 'ALTER TABLESPACE ' || TABLESPACE_NAME ||  ' ADD TEMPFILE '   || '''' || '/oradata1/oradata/PROD/' 
+|| REGEXP_SUBSTR(FILE_NAME,'[^/]+',3,4) || '''' || ' size 1G reuse autoextend on next 100M maxsize 5G;'
+ from DBA_TEMP_FILES order by FILE_NAME asc;
+ 
+ 
+ 
+alter tablespace temp drop tempfile '/data2/PROD/datafile/temp01.dbf';
+alter tablespace temp drop tempfile '/data2/PROD/datafile/temp02.dbf';
+alter tablespace temp drop tempfile '/data2/PROD/datafile/temp03.dbf';
+ALTER TABLESPACE TEMP ADD TEMPFILE '/oradata1/oradata/PROD/temp01.dbf' size 1G reuse autoextend on next 100M maxsize 5G;
+ALTER TABLESPACE TEMP ADD TEMPFILE '/oradata1/oradata/PROD/temp02.dbf' size 1G reuse autoextend on next 100M maxsize 5G;
+ALTER TABLESPACE TEMP ADD TEMPFILE '/oradata1/oradata/PROD/temp03.dbf' size 1G reuse autoextend on next 100M maxsize 5G;
+
+SQL > select dbid from v$database;
+SQL > select host_name from v$instance;
+SQL > select file#, substr(name, 1, 50), substr(tablespace_name, 1, 15) from v$datafile_header where fuzzy='YES' ;
