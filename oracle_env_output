@@ -1,0 +1,180 @@
+RED='\033[0;31m'
+NOCOLOR='\033[0m'
+export SRV_NAME="`uname -n`"
+EXL_DB="\-MGMTDB|ASM|APX"
+INS_COUNT=$( ps -ef|grep pmon|grep -v grep|egrep -v ${EXL_DB}|wc -l )
+	if [[ $INS_COUNT -eq 0 ]]
+	 then
+         echo "ALARM: No Databases Are Running on Server !!!" 
+         return
+	fi
+
+# #########################
+# Setting ORACLE_SID:
+# #########################
+for ORACLE_SID in $( ps -ef|grep pmon|grep -v grep|egrep -v ${EXL_DB}|awk '{print $NF}'|sed -e 's/ora_pmon_//g'|grep -v sed|grep -v "s///g" )
+   do
+    export ORACLE_SID
+
+# #########################
+# Getting ORACLE_HOME
+# #########################
+  ORA_USER=`ps -ef|grep ${ORACLE_SID}|grep pmon|grep -v grep|egrep -v ${EXL_DB}|grep -v "\-MGMTDB"|awk '{print $1}'|tail -1`
+  USR_ORA_HOME=`grep -i "^${ORA_USER}:" /etc/passwd| cut -f6 -d ':'|tail -1`
+
+# SETTING ORATAB:
+if [[ -f /etc/oratab ]]
+  then
+ORATAB=/etc/oratab
+export ORATAB
+## If OS is Solaris:
+elif [[ -f /var/opt/oracle/oratab ]]
+  then
+ORATAB=/var/opt/oracle/oratab
+export ORATAB
+fi
+
+# ATTEMPT1: Get ORACLE_HOME using pwdx command:
+export PGREP=`which pgrep`
+export PWDX=`which pwdx`
+if [[ -x ${PGREP} ]] && [[ -x ${PWDX} ]]
+then
+PMON_PID=`pgrep  -lf _pmon_${ORACLE_SID}|awk '{print $1}'`
+export PMON_PID
+ORACLE_HOME=`pwdx ${PMON_PID} 2>/dev/null|awk '{print $NF}'|sed -e 's/\/dbs//g'`
+export ORACLE_HOME
+fi
+
+# ATTEMPT2: If ORACLE_HOME not found get it from oratab file:
+if [[ ! -f ${ORACLE_HOME}/bin/sqlplus ]]
+ then
+## If OS is Linux:
+if [[ -f /etc/oratab ]]
+  then
+ORATAB=/etc/oratab
+ORACLE_HOME=`grep -v '^\#' ${ORATAB} | grep -v '^$'| grep -i "^${ORACLE_SID}:" | perl -lpe'$_ = reverse' | cut -f3 | perl -lpe'$_ = reverse' |cut -f2 -d':'`
+export ORACLE_HOME
+
+## If OS is Solaris:
+elif [[ -f /var/opt/oracle/oratab ]]
+  then
+ORATAB=/var/opt/oracle/oratab
+ORACLE_HOME=`grep -v '^\#' ${ORATAB} | grep -v '^$'| grep -i "^${ORACLE_SID}:" | perl -lpe'$_ = reverse' | cut -f3 | perl -lpe'$_ = reverse' |cut -f2 -d':'`
+export ORACLE_HOME
+fi
+fi
+
+# ATTEMPT3: If ORACLE_HOME is in /etc/oratab, use dbhome command:
+if [[ ! -f ${ORACLE_HOME}/bin/sqlplus ]]
+ then
+ORACLE_HOME=`dbhome "${ORACLE_SID}"`
+export ORACLE_HOME
+fi
+
+# ATTEMPT4: If ORACLE_HOME is still not found, search for the environment variable: [Less accurate]
+if [[ ! -f ${ORACLE_HOME}/bin/sqlplus ]]
+ then
+ORACLE_HOME=`env|grep -i ORACLE_HOME|sed -e 's/ORACLE_HOME=//g'`
+export ORACLE_HOME
+fi
+
+# ATTEMPT5: If ORACLE_HOME is not found in the environment search user's profile: [Less accurate]
+if [[ ! -f ${ORACLE_HOME}/bin/sqlplus ]]
+ then
+ORACLE_HOME=`grep -h 'ORACLE_HOME=\/' ${USR_ORA_HOME}/.bash_profile ${USR_ORA_HOME}/.*profile | perl -lpe'$_ = reverse' |cut -f1 -d'=' | perl -lpe'$_ = reverse'|tail -1`
+export ORACLE_HOME
+fi
+
+# ATTEMPT6: If ORACLE_HOME is still not found, search for orapipe: [Least accurate]
+if [[ ! -f ${ORACLE_HOME}/bin/sqlplus ]]
+ then
+	if [[ -x /usr/bin/locate ]]
+ 	 then
+ORACLE_HOME=`locate -i orapipe|head -1|sed -e 's/\/bin\/orapipe//g'`
+export ORACLE_HOME
+	fi
+fi
+
+# TERMINATE: If all above attempts failed to get ORACLE_HOME location, EXIT the script:
+if [[ ! -f ${ORACLE_HOME}/bin/sqlplus ]]
+ then
+  echo "Please export ORACLE_HOME variable in your .bash_profile file under oracle user home directory in order to get this script to run properly"
+  echo "e.g."
+  echo "export ORACLE_HOME=/u01/app/oracle/product/11.2.0/db_1"
+mail -s "dbdailychk script on Server [ ${SRV_NAME} ] failed to locate ORACLE_HOME for SID [ ${ORACLE_SID} ], Please export ORACLE_HOME variable in your .bash_profile file under oracle user home directory" ${MAIL_LIST} < /dev/null
+exit
+fi
+
+export LD_LIBRARY_PATH=${ORACLE_HOME}/lib
+
+# #############################
+# Getting hostname in lowercase:
+# #############################
+HOSTNAMELOWER=$( echo "`hostname --short`"| tr '[A-Z]' '[a-z]' )
+export HOSTNAMELOWER
+
+# ########################
+# Getting GRID_HOME:
+# ########################
+
+CHECK_OCSSD=`ps -ef|grep 'ocssd.bin'|grep -v grep|wc -l`
+CHECK_CRSD=`ps -ef|grep 'crsd.bin'|grep -v grep|wc -l`
+
+ if [[ ${CHECK_OCSSD} -gt 0 ]]
+  then
+GRID_HOME=`ps -ef|grep 'ocssd.bin'|grep -v grep|awk '{print $NF}'|sed -e 's/\/bin\/ocssd.bin//g'|grep -v sed|grep -v "//g"|tail -1`
+export GRID_HOME
+
+        if [[ ! -d ${GRID_HOME} ]]
+         then
+ASM_INSTANCE_NAME=`ps -ef|grep pmon|grep -v grep|grep asm_pmon_|awk '{print $NF}'|sed -e 's/asm_pmon_//g'|grep -v sed|grep -v "s///g"|tail -1`
+GRID_HOME=`dbhome ${ASM_INSTANCE_NAME}`
+export GRID_HOME
+        fi
+
+# ########################
+# Getting GRID_BASE:
+# ########################
+
+# Locating GRID_BASE:
+
+GRID_BASE=`cat ${GRID_HOME}/crs/install/crsconfig_params|grep ^ORACLE_BASE|tail -1|awk '{print $NF}'|sed -e 's/ORACLE_BASE=//g'`
+export GRID_BASE
+
+        if [[ ! -d ${GRID_BASE} ]]
+         then
+GRID_BASE=`cat ${GRID_HOME}/crs/utl/appvipcfg|grep ^ORACLE_BASE|tail -1|awk '{print $NF}'|sed -e 's/ORACLE_BASE=//g'`
+export GRID_BASE
+        fi
+
+        if [[ ! -d ${GRID_BASE} ]]
+         then
+GRID_BASE=`cat ${GRID_HOME}/install/envVars.properties|grep ^ORACLE_BASE|tail -1|awk '{print $NF}'|sed -e 's/ORACLE_BASE=//g'`
+export GRID_BASE
+        fi
+ fi
+
+# #########################
+# Variables:
+# #########################
+export PATH=${PATH}:${ORACLE_HOME}/bin
+done
+echo -e "${RED}Sunucu Adı:${NOCOLOR} " $SRV_NAME
+echo -e "${RED}Oracle SID:${NOCOLOR} " $ORACLE_SID
+echo -e "${RED}Oracle Home:${NOCOLOR} " $ORACLE_HOME
+table="gv\$instance"
+#var=" $(sqlplus -s / as sysdba @/home/oracle/bash.sql)"
+#echo $var
+SQL='set heading on
+set trimspool off
+set linesize 200
+set feedback off
+select inst_id,instance_name, status, database_status  from gv$instance;
+select name, log_mode, open_mode, database_role  from gv$database;
+select banner as VERSION from v$version;
+exit;
+'
+sqlplus -s / as sysdba << EOF
+$SQL
+exit
+EOF
